@@ -1,3 +1,4 @@
+import joblib
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
@@ -19,6 +20,7 @@ CITIES = {
     "Bangalore": {"lat": 12.9716, "lon": 77.5946},
     "Kolkata": {"lat": 22.5726, "lon": 88.3639}
 }
+model = joblib.load("model.pkl")
 
 def get_weather(lat, lon):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&timezone=Asia/Kolkata"
@@ -30,8 +32,8 @@ def get_weather(lat, lon):
     except:
         return None, None
 
-@app.route('/')
-def home():
+@app.route('/api/weather')
+def api_weather():
     return '''
     <!DOCTYPE html>
     <html>
@@ -381,30 +383,41 @@ def api_weather():
         rainTime = "No rain expected"
     
     # AI Prediction
-    pred = round(temp + random.uniform(-1, 2), 1)
-    
-    # Forecast
-    forecast = []
-    now = datetime.now()
-    for i in range(1, 13):
-        t = now + timedelta(hours=i)
-        forecast.append({
-            'time': t.strftime('%I:%M %p'),
-            'temp': round(temp + random.uniform(-2, 3), 1)
-        })
-    
-    return jsonify({
-        'temp': temp,
-        'humidity': humidity,
-        'wind': wind,
-        'pressure': pressure,
-        'prediction': pred,
-        'rainChance': rainChance,
-        'rainTime': rainTime,
-        'stormChance': stormChance,
-        'stormWind': round(wind + 5, 1),
-        'forecast': forecast
-    })
+  # AI MODEL PREDICTION
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=False)
+now = datetime.now()
+
+features = [[
+    now.hour,
+    now.day,
+    now.month,
+    now.weekday(),
+    humidity,
+    wind,
+    pressure
+]]
+
+pred = model.predict(features)[0]
+pred = round(float(pred), 1)
+forecast = []
+
+for i in range(1, 13):
+
+    future = now + timedelta(hours=i)
+
+    future_features = [[
+        future.hour,
+        future.day,
+        future.month,
+        future.weekday(),
+        humidity,
+        wind,
+        pressure
+    ]]
+
+    future_temp = model.predict(future_features)[0]
+
+    forecast.append({
+        'time': future.strftime('%I:%M %p'),
+        'temp': round(float(future_temp), 1)
+    })
