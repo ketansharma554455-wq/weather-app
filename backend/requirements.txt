@@ -3,3 +3,6 @@ flask-cors
 requests
 joblib
 gunicorn
+scikit-learn
+numpy
+pandas
